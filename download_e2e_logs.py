@@ -43,28 +43,59 @@ def parse_arguments() -> argparse.Namespace:
     
     return args
 
+
+def create_output_directory(output: str):
+    # Create output directory
+    try:
+        Path(output).mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        logging.error(f"Permission denied when creating directory: {output}")
+        return 1
+    except Exception as e:
+        logging.error(f"Error creating output directory: {e}")
+        return 1
+
+def is_invalid_github_token():
+    # Check for GitHub token
+    try:
+        os.environ["GITHUB_TOKEN"]
+    except KeyError:
+        logging.error("GITHUB_TOKEN environment variable is not set")
+        print("Error: GITHUB_TOKEN environment variable must be set.")
+        print("Set it with: export GITHUB_TOKEN=your_token")
+        return True
+    return False
+
+
+def get_workflow_id(repo, workflow_name, api):
+    # Get workflows
+    try:
+        all_workflows = api.actions.list_repo_workflows()
+    except Exception as e:
+        logging.error(f"Failed to list workflows: {e}")
+        return 1
+            
+    # Find workflow ID by name
+    workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
+    
+    if workflow_id is None:
+        logging.error(f"Could not find workflow: {workflow_name}")
+        print(f"Error: Workflow '{workflow_name}' not found in repository {repo}")
+        print("Available workflows:")
+        for wf in all_workflows.get('workflows', []):
+            print(f"  - {wf.get('name')}")
+        return None
+
+    return workflow_id
+
 def main() -> int:
     """Main function to run the script."""
     try:
         args = parse_arguments()
         
-        # Create output directory
-        try:
-            Path(args.output).mkdir(parents=True, exist_ok=True)
-        except PermissionError:
-            logging.error(f"Permission denied when creating directory: {args.output}")
-            return 1
-        except Exception as e:
-            logging.error(f"Error creating output directory: {e}")
-            return 1
+        create_output_directory(args.output)
         
-        # Check for GitHub token
-        try:
-            github_token = os.environ["GITHUB_TOKEN"]
-        except KeyError:
-            logging.error("GITHUB_TOKEN environment variable is not set")
-            print("Error: GITHUB_TOKEN environment variable must be set.")
-            print("Set it with: export GITHUB_TOKEN=your_token")
+        if is_invalid_github_token():
             return 1
         
         try:
@@ -74,26 +105,9 @@ def main() -> int:
                 return 1
                 
             owner, repo_name = args.repo.split("/", 1)
-            api = GhApi(owner=owner, repo=repo_name, token=github_token)
+            api = GhApi(owner=owner, repo=repo_name, token=os.environ["GITHUB_TOKEN"])
             
-            # Get workflows
-            try:
-                all_workflows = api.actions.list_repo_workflows()
-            except Exception as e:
-                logging.error(f"Failed to list workflows: {e}")
-                return 1
-            
-            # Find workflow ID by name
-            workflow_name = args.workflow
-            workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
-            
-            if workflow_id is None:
-                logging.error(f"Could not find workflow: {workflow_name}")
-                print(f"Error: Workflow '{workflow_name}' not found in repository {args.repo}")
-                print("Available workflows:")
-                for wf in all_workflows.get('workflows', []):
-                    print(f"  - {wf.get('name')}")
-                return 1
+            workflow_id = get_workflow_id(args.repo, args.workflow, api)
             
             # Get run IDs
             runs = get_run_ids(workflow_id, api, args.page_size, args.days)
