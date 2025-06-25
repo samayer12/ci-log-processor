@@ -1,4 +1,5 @@
-*.png
 *.log
+*.png
 *.pyc
+*.tar.gz
 __pycache__
