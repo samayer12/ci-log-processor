@@ -21,12 +21,12 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
         run_subset = []
         page_number = 1
         for page in runs:
-          page_number += 1
           if len(page['workflow_runs']) == 0:
               logging.info(f"No entries detected after {page_number - 1} pages")
               return run_subset # End of pagination, return the collection
 
           logging.info(f"There are {len(page['workflow_runs'])} runs on page {page_number}")
+          page_number += 1
 
           for run in page['workflow_runs']:
             run_subset.append(
