@@ -34,12 +34,12 @@ def parse_arguments() -> argparse.Namespace:
         parser.error("Repository must be in 'owner/repo' format")
     
     # Validate days argument
-    if args.days <= 0:
-        parser.error("Days must be a positive integer")
+    if args.days < 0:
+        parser.error("Days must be a positive integer, or zero")
     
     # Validate page size
     if args.page_size <= 0:
-        parser.error("Page size must be a positive integer")
+        parser.error("Page size must be a positive non-zero integer")
     
     return args
 
@@ -88,6 +88,31 @@ def get_workflow_id(repo, workflow_name, api):
 
     return workflow_id
 
+def get_job_logs_in_parallel(all_jobs, repo, output):
+    logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
+    # Process each run in parallel
+    success_count = 0
+    # Helper function for parallel execution
+    def process_job(job_data: Dict[str, Any], run_id: int) -> Optional[Path]:
+        return get_logs_for_job(job_data['id'], job_data['name'], run_id, repo, output)
+
+    # TODO: Rate-limiting @ 1000 requests per hour per repo
+    # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#primary-rate-limit-for-github_token-in-github-actions
+    # Use ThreadPoolExecutor to process jobs in parallel
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Create a list of futures
+        futures = [executor.submit(process_job, job, run_id) for job, run_id in all_jobs]
+        
+        # Process results as they complete
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                log_path = future.result()
+                if log_path:
+                    success_count += 1
+            except Exception as exc:
+                logging.error(f"Job processing failed: {exc}")
+    logging.info(f"Successfully downloaded {success_count} log files to {output}/")
+
 def main() -> int:
     """Main function to run the script."""
     try:
@@ -109,19 +134,9 @@ def main() -> int:
             
             workflow_id = get_workflow_id(args.repo, args.workflow, api)
             
-            # Get run IDs
             runs = get_run_ids(workflow_id, api, args.page_size, args.days)
             if not runs:
-                logging.warning(f"No runs found for workflow {workflow_name} in the past {args.days} days")
-                print(f"No workflow runs found for '{workflow_name}' in the past {args.days} days")
                 return 0
-            
-            # Process each run in parallel
-            success_count = 0
-            
-            # Helper function for parallel execution
-            def process_job(job_data: Dict[str, Any], run_id: int) -> Optional[Path]:
-                return get_logs_for_job(job_data['id'], job_data['name'], run_id, args.repo, args.output)
             
             # Collect all jobs from all runs
             all_jobs = []
@@ -130,26 +145,8 @@ def main() -> int:
                 for job in jobs:
                     all_jobs.append((job, run['id']))
             
-            logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
-            
-            # TODO: Rate-limiting @ 1000 requests per hour per repo
-            # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#primary-rate-limit-for-github_token-in-github-actions
-            # Use ThreadPoolExecutor to process jobs in parallel
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                # Create a list of futures
-                futures = [executor.submit(process_job, job, run_id) for job, run_id in all_jobs]
-                
-                # Process results as they complete
-                for future in concurrent.futures.as_completed(futures):
-                    try:
-                        log_path = future.result()
-                        if log_path:
-                            success_count += 1
-                    except Exception as exc:
-                        logging.error(f"Job processing failed: {exc}")
-            
-            logging.info(f"Successfully downloaded {success_count} log files")
-            print(f"\nSuccessfully downloaded {success_count} log files to {args.output}/")
+            get_job_logs_in_parallel(all_jobs, args.repo, args.output) 
+
             return 0
             
         except Exception as e:

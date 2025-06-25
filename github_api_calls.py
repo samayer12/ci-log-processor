@@ -41,6 +41,8 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
     except Exception as e:
         logging.error(f"Error fetching workflow runs: {e}")
         return []
+    if (len(run_subset) == 0):
+        logging.warning(f"No runs found for this workflow (id: {workflow_id}) in the past {days} days")
     return run_subset
 
 def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs") -> List[Dict[str, Any]]:
