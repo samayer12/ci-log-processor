@@ -106,3 +106,11 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, 
     except Exception as e:
         logging.error(f"Unexpected error downloading log for job {job_id}: {e}")
         return None
+
+def get_all_job_ids(runs, api, output):
+    all_jobs = []
+    for run in runs:
+        jobs = get_jobs_for_workflow_run(run['id'], api, output)
+        for job in jobs:
+            all_jobs.append((job, run['id']))
+    return all_jobs

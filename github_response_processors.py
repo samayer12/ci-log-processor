@@ -1,5 +1,6 @@
 import logging
 from typing import Dict,  Optional, Any
+from github_api_calls import get_jobs_for_workflow_run
 
 def find_workflow_id_by_name(workflows_data: Dict[str, Any], workflow_name: str) -> Optional[int]:
     """
@@ -24,4 +25,3 @@ def find_workflow_id_by_name(workflows_data: Dict[str, Any], workflow_name: str)
     
     logging.warning(f"No workflow found with name: {workflow_name}")
     return None
-

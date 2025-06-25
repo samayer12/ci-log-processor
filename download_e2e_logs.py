@@ -6,7 +6,7 @@ from pathlib import Path
 import logging
 import concurrent.futures
 from typing import Dict,  Optional, Any
-from github_api_calls import get_jobs_for_workflow_run, get_logs_for_job, get_run_ids
+from github_api_calls import get_logs_for_job, get_run_ids, get_all_job_ids
 from github_response_processors import find_workflow_id_by_name
 
 # Configure logging
@@ -89,14 +89,6 @@ def get_workflow_id(repo, workflow_name, api):
         return None
 
     return workflow_id
-
-def get_all_job_ids(runs, api, output):
-    all_jobs = []
-    for run in runs:
-        jobs = get_jobs_for_workflow_run(run['id'], api, output)
-        for job in jobs:
-            all_jobs.append((job, run['id']))
-    return all_jobs
 
 def get_job_logs_in_parallel(all_jobs, repo, output):
     logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
