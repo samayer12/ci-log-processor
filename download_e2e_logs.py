@@ -7,13 +7,13 @@ from pathlib import Path
 def parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Download logs from a GitHub Actions workflow."
+        description=f"Download logs from a GitHub Actions workflow."
     )
-    parser.add_argument("-r", "--repo", required=True, help="Repository in owner/repo format")
-    parser.add_argument("-w", "--workflow", required=True, help="Workflow name")
-    parser.add_argument("-d", "--days", type=int, default=7, help="Days to look back (default: 7)")
-    parser.add_argument("-o", "--output", default="logs", help="Output directory (default: logs)")
-    parser.add_argument("-p", "--page-size", default=100, help="Set page size. Pagination is currently unsupported.")
+    parser.add_argument("-r", "--repo", required=True, help=f"Repository in owner/repo format")
+    parser.add_argument("-w", "--workflow", required=True, help=f"Workflow name")
+    parser.add_argument("-d", "--days", type=int, default=7, help=f"Days to look back (default: 7)")
+    parser.add_argument("-o", "--output", default="logs", help=f"Output directory (default: logs)")
+    parser.add_argument("-p", "--page-size", default=100, help=f"Set page size. Pagination is currently unsupported.")
     return parser.parse_args()
 
 def find_workflow_id_by_name(workflows_data, workflow_name):
@@ -62,7 +62,16 @@ def get_run_ids(workflow_id: int):
 
 
 def filter_by_date(runs, days):
-    return [run for run in runs if (datetime.now() - datetime.strptime(run['created_at'], '%Y-%m-%dT%H:%M:%SZ')).days <= days]
+    """Filter runs by date.
+    
+    Args:
+        runs (list): List of workflow runs
+        days (int): Number of days to look back
+        
+    Returns:
+        list: Filtered list of runs
+    """
+    return [run for run in runs if (datetime.now() - datetime.strptime(run['created_at'], f'%Y-%m-%dT%H:%M:%SZ')).days <= days]
 
 def get_jobs_for_workflow_run(run_id: int):
     run_dir = Path("logs") / f"run-{run_id}"
@@ -94,8 +103,8 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int):
         repo = args.repo
         cmd = [
             "gh", "api",
-            "-H", "Accept: application/vnd.github+json",
-            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            "-H", f"Accept: application/vnd.github+json",
+            "-H", f"X-GitHub-Api-Version: 2022-11-28",
             f"repos/{repo}/actions/jobs/{job_id}/logs"
         ]
         
@@ -117,7 +126,8 @@ if __name__ == "__main__":
     # WARNING: API token should be stored securely, not in source code
     github_token = os.environ["GITHUB_TOKEN"]
     
-    api = GhApi(owner=args.repo.split("/")[0], repo=args.repo.split("/")[1], token=github_token)
+    owner, repo_name = args.repo.split("/")
+    api = GhApi(owner=owner, repo=repo_name, token=github_token)
     
     all_workflows = api.actions.list_repo_workflows()
     
