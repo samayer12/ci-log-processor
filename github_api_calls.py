@@ -1,8 +1,9 @@
-from ghapi.all import GhApi, paged
 from datetime import datetime,timedelta 
+from ghapi.all import GhApi, paged
 from pathlib import Path
-import logging
 from typing import Dict, List, Optional, Any
+import logging
+
 
 def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, days: int) -> List[Dict[str, Any]]:
     """
@@ -49,6 +50,7 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
         logging.warning(f"No runs found for this workflow (id: {workflow_id}) in the past {days} days")
     return run_subset
 
+
 def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs") -> List[Dict[str, Any]]:
   run_dir = Path(output_dir) / f"run-{run_id}"
   run_dir.mkdir(parents=True, exist_ok=True)
@@ -70,6 +72,7 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
   except Exception as e:
       logging.error(f"Error fetching jobs for run {run_id}: {e}")
       return []
+
 
 def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, output_dir: str = "logs") -> Optional[Path]:
     """
@@ -106,6 +109,7 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, 
     except Exception as e:
         logging.error(f"Unexpected error downloading log for job {job_id}: {e}")
         return None
+
 
 def get_all_job_ids(runs, api, output):
     all_jobs = []

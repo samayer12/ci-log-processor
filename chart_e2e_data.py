@@ -7,6 +7,7 @@ import os
 LOG_FILE = "/Users/sam.mayer/code/personal/ci-log-processor/py.log"
 OUTPUT_IMAGE = "failures_histogram.png"
 
+
 def load_failure_data(log_file):
     """Loads job failure data from a JSON file."""
     with open(log_file, "r", encoding="utf-8") as file:
@@ -21,12 +22,14 @@ def load_failure_data(log_file):
 
     return failures
 
+
 def aggregate_failures(failures):
     """Aggregates failures by job name."""
     df = pd.DataFrame(failures, columns=["job_name", "failures", "test_failure_count", "attempt_failure_count", "final_attempt_failure_count"])
     df = df.groupby("job_name", as_index=False).sum()
     df = df.sort_values(by="failures", ascending=False)
     return df
+
 
 def plot_failures(df, output_path):
     """Generates and saves a histogram of failures."""
@@ -60,6 +63,7 @@ def plot_failures(df, output_path):
     plt.savefig("failures_stacked_histogram.png")
     print("Saved stacked chart as failures_stacked_histogram.png")
 
+
 def main():
     """Main function to process and chart E2E job failures."""
     if not os.path.exists(LOG_FILE):
@@ -74,6 +78,7 @@ def main():
 
     df = aggregate_failures(failures)
     plot_failures(df, OUTPUT_IMAGE)
+
 
 if __name__ == "__main__":
     main()

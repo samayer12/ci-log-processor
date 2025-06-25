@@ -3,19 +3,23 @@ import sys
 import json
 import re
 
+
 def print_usage():
     """Prints usage instructions and exits."""
     print("This script processes directories containing log files from CI runs.")
     print("\nUsage: python process_e2e_data.py <log_directory1> [log_directory2] ...")
     sys.exit(1)
 
+
 def validate_directory(log_dir):
     """Checks if a given directory exists."""
     return os.path.isdir(log_dir)
 
+
 def compute_failure_rate(failure_count, total_runs):
     """Calculates the failure rate as a percentage."""
     return round((failure_count / total_runs) * 100, 2) if total_runs > 0 else 0.00
+
 
 def process_log_file(job):
     """Processes a single log file and extracts relevant metrics."""
@@ -62,6 +66,7 @@ def process_log_file(job):
         "failure_rate": failure_rate
     }
 
+
 def process_directory(log_dir):
     """Processes all log files in a directory."""
     jobs = []
@@ -75,6 +80,7 @@ def process_directory(log_dir):
         "directory": log_dir,
         "jobs": jobs
     }
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
