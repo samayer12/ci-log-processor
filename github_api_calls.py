@@ -15,7 +15,6 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
         list: List of run IDs
     """
     try:
-        # TODO: Pagination & long history requests
         date_limit = datetime.today() - timedelta(days=days)
         date_limit_str = date_limit.strftime("%Y-%m-%d")
         runs = paged(api.actions.list_workflow_runs, workflow_id, created=f">={date_limit_str}", per_page=page_size)

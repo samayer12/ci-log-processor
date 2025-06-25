@@ -118,7 +118,8 @@ def main() -> int:
             
             logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
             
-            # TODO: Rate-limiting
+            # TODO: Rate-limiting @ 1000 requests per hour per repo
+            # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#primary-rate-limit-for-github_token-in-github-actions
             # Use ThreadPoolExecutor to process jobs in parallel
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 # Create a list of futures
