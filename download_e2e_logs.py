@@ -16,7 +16,7 @@ def parse_arguments():
     parser.add_argument("-p", "--page-size", default=100, help=f"Set page size. Pagination is currently unsupported.")
     return parser.parse_args()
 
-def find_workflow_id_by_name(workflows_data, workflow_name):
+def find_workflow_id_by_name(workflows_data, workflow_name, api):
     """
     Extract the ID of a workflow that matches the given name.
     
@@ -42,7 +42,7 @@ def find_workflow_id_by_name(workflows_data, workflow_name):
     print(f"No workflow found with name: {workflow_name}")
     return None
 
-def get_run_ids(workflow_id: int):
+def get_run_ids(workflow_id: int, api, page_size: int, days: int):
     """
     Get the run IDs for a specific workflow.
     
@@ -53,11 +53,11 @@ def get_run_ids(workflow_id: int):
         list: List of run IDs
     """
     # TODO: Pagination & long history requests
-    runs = api.actions.list_workflow_runs(workflow_id, per_page=args.page_size)
+    runs = api.actions.list_workflow_runs(workflow_id, per_page=page_size)
     print(f"There are {len(runs['workflow_runs'])} runs on the first page (no pagination)")
     run_subset = [{"id": run['id'], "status": run['status'], "conclusion": run['conclusion'], "created_at": run['created_at']} for run in runs['workflow_runs']]
-    run_subset = filter_by_date(run_subset, args.days)
-    print(f"There are {len(run_subset)} runs that happened within the past {args.days} days")
+    run_subset = filter_by_date(run_subset, days)
+    print(f"There are {len(run_subset)} runs that happened within the past {days} days")
     return run_subset
 
 
@@ -73,8 +73,8 @@ def filter_by_date(runs, days):
     """
     return [run for run in runs if (datetime.now() - datetime.strptime(run['created_at'], f'%Y-%m-%dT%H:%M:%SZ')).days <= days]
 
-def get_jobs_for_workflow_run(run_id: int):
-    run_dir = Path("logs") / f"run-{run_id}"
+def get_jobs_for_workflow_run(run_id: int, api, output_dir: str = "logs"):
+    run_dir = Path(output_dir) / f"run-{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Fetching jobs for run ID: {run_id}...")
@@ -83,7 +83,7 @@ def get_jobs_for_workflow_run(run_id: int):
     jobs = api.actions.list_jobs_for_workflow_run(run_id)
     return [{"id": job['id'], "name": job['name']} for job in jobs['jobs']]
 
-def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int):
+def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, output_dir: str = "logs"):
     """
     Download logs for a specific job using GitHub CLI.
     
@@ -93,14 +93,13 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int):
         parent_run_id (int): The parent run ID
     """
 
-    run_dir = Path(args.output) / f"run-{parent_run_id}"
+    run_dir = Path(output_dir) / f"run-{parent_run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = run_dir / f"{job_id}-{job_name}.log"
     
     try:
         import subprocess
-        repo = args.repo
         cmd = [
             "gh", "api",
             "-H", f"Accept: application/vnd.github+json",
@@ -117,7 +116,8 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int):
         print(f"Error downloading log for job {job_id}: {e}")
         return None
 
-if __name__ == "__main__":
+def main():
+    """Main function to run the script."""
     args = parse_arguments()
     
     # Create output directory
@@ -133,10 +133,13 @@ if __name__ == "__main__":
     
     # Find workflow ID by name
     workflow_name = args.workflow
-    workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
+    workflow_id = find_workflow_id_by_name(all_workflows, workflow_name, api)
 
-    runs = get_run_ids(workflow_id)
+    runs = get_run_ids(workflow_id, api, args.page_size, args.days)
     for run in runs:
-        jobs = get_jobs_for_workflow_run(run['id'])
+        jobs = get_jobs_for_workflow_run(run['id'], api, args.output)
         for job in jobs:
-            get_logs_for_job(job['id'], job['name'], run['id'])
+            get_logs_for_job(job['id'], job['name'], run['id'], args.repo, args.output)
+
+if __name__ == "__main__":
+    main()
