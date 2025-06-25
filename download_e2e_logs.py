@@ -1,17 +1,8 @@
-#!/usr/bin/env python3
-"""
-Script to download E2E logs from GitHub Actions workflows.
-Example Usage: python download_e2e_logs.py -r defenseunicorns/pepr -w "E2E - Pepr Excellent Examples" -o loggy
-"""
-
 import argparse
-import json
+from ghapi.all import GhApi
+from datetime import datetime
 import os
-import subprocess
-import sys
-import tarfile
-from datetime import datetime, timedelta, UTC
-
+from pathlib import Path
 
 def parse_arguments():
     """Parse command-line arguments."""
@@ -22,152 +13,120 @@ def parse_arguments():
     parser.add_argument("-w", "--workflow", required=True, help="Workflow name")
     parser.add_argument("-d", "--days", type=int, default=7, help="Days to look back (default: 7)")
     parser.add_argument("-o", "--output", default="logs", help="Output directory (default: logs)")
-    parser.add_argument("-l", "--limit", default=100, help="Limit the amount of workflow runs that are pulled. Used to avoid API rate-limits during testing.")
-    
+    parser.add_argument("-p", "--page-size", default=100, help="Set page size. Pagination is currently unsupported.")
     return parser.parse_args()
 
-
-def validate_inputs(args):
-    """Validate input arguments."""
-    if not args.repo or not args.workflow:
-        print("Error: Repository and workflow name are required.")
-        sys.exit(1)
-
-
-def get_workflow_id(repo: str, workflow_name: str):
-    """Get the workflow ID for the given workflow name."""
-    print(f"Fetching workflow ID for '{workflow_name}'...")
+def find_workflow_id_by_name(workflows_data, workflow_name):
+    """
+    Extract the ID of a workflow that matches the given name.
     
-    try:
-        cmd = ["gh", "workflow", "list", "--repo", repo, "--limit", "100", "--json", "name,id"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        workflows = json.loads(result.stdout)
-        
-        for workflow in workflows:
-            if workflow["name"] == workflow_name:
-                workflow_id = workflow["id"]
-                print(f"Workflow ID: {workflow_id}")
-                return workflow_id
-        
-        print(f"Error: Workflow '{workflow_name}' not found in repository '{repo}'.")
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing GitHub CLI: {e}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing GitHub CLI output: {e}")
-        sys.exit(1)
-
-
-def get_run_ids(repo: str, workflow_id: int, days: int, limit: int):
-    """Get workflow run IDs from the last specified days."""
-    print(f"Fetching workflow runs from the last {days} days...")
+    Args:
+        workflows_data (dict): The JSON response containing workflow data
+        workflow_name (str): Name of the workflow to find
     
-    try:
-        # Calculate date for cutoff
-        cutoff_date = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        
-        cmd = [
-            "gh", "run", "list", 
-            "--workflow", str(workflow_id), 
-            "--repo", repo, 
-            "--limit", limit,
-            "--json", "databaseId,createdAt"
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        runs = json.loads(result.stdout)
-        
-        run_ids = []
-        for run in runs:
-            if run["createdAt"] >= cutoff_date:
-                run_ids.append(run["databaseId"])
-        
-        if not run_ids:
-            print(f"No runs found for the past {days} days.")
-            sys.exit(0)
+    Returns:
+        int or None: The ID of the workflow if found, None otherwise
+    """
+    if 'workflows' not in workflows_data:
+        return None
+    
+    for workflow in workflows_data['workflows']:
+        if workflow.get('name') == workflow_name:
+            workflow_id = workflow.get('id')
+            print(f"Found workflow '{workflow_name}' with ID: {workflow_id}")
             
-        return run_ids
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing GitHub CLI: {e}")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"Error parsing GitHub CLI output: {e}")
-        sys.exit(1)
+            workflow_details = api.actions.get_workflow(workflow_id)
+            # print(f"Workflow details: {workflow_details}")
+            return workflow.get('id')
+    
+    print(f"No workflow found with name: {workflow_name}")
+    return None
+
+def get_run_ids(workflow_id: int):
+    """
+    Get the run IDs for a specific workflow.
+    
+    Args:
+        workflow_id (int): ID of the workflow
+    
+    Returns:
+        list: List of run IDs
+    """
+    # TODO: Pagination & long history requests
+    runs = api.actions.list_workflow_runs(workflow_id, per_page=args.page_size)
+    print(f"There are {len(runs['workflow_runs'])} runs on the first page (no pagination)")
+    run_subset = [{"id": run['id'], "status": run['status'], "conclusion": run['conclusion'], "created_at": run['created_at']} for run in runs['workflow_runs']]
+    run_subset = filter_by_date(run_subset, args.days)
+    print(f"There are {len(run_subset)} runs that happened within the past {args.days} days")
+    return run_subset
 
 
-def download_logs_for_run(repo: str, run_id: int, output_dir: str):
-    """Download logs for a specific run ID."""
-    run_dir = os.path.join(output_dir, f"run-{run_id}")
-    os.makedirs(run_dir, exist_ok=True)
+def filter_by_date(runs, days):
+    return [run for run in runs if (datetime.now() - datetime.strptime(run['created_at'], '%Y-%m-%dT%H:%M:%SZ')).days <= days]
+
+def get_jobs_for_workflow_run(run_id: int):
+    run_dir = Path("logs") / f"run-{run_id}"
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Fetching jobs for run ID: {run_id}...")
+
+    # TODO: Should be used iteratively in main loop
+    jobs = api.actions.list_jobs_for_workflow_run(run_id)
+    return [{"id": job['id'], "name": job['name']} for job in jobs['jobs']]
+
+def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int):
+    """
+    Download logs for a specific job using GitHub CLI.
+    
+    Args:
+        job_id (int): The job ID
+        job_name (str): The name of the job
+        parent_run_id (int): The parent run ID
+    """
+
+    run_dir = Path(args.output) / f"run-{parent_run_id}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = run_dir / f"{job_id}-{job_name}.log"
+    
     try:
-        cmd = ["gh", "run", "view", str(run_id), "--repo", repo, "--json", "jobs"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        jobs_data = json.loads(result.stdout)
+        import subprocess
+        repo = args.repo
+        cmd = [
+            "gh", "api",
+            "-H", "Accept: application/vnd.github+json",
+            "-H", "X-GitHub-Api-Version: 2022-11-28",
+            f"repos/{repo}/actions/jobs/{job_id}/logs"
+        ]
         
-        jobs = jobs_data.get("jobs", [])
-        if not jobs:
-            print(f"No jobs found for run ID: {run_id}")
-            return
+        with output_path.open("wb") as f:
+            result = subprocess.run(cmd, stdout=f, check=True)
         
-        for index, job in enumerate(jobs):
-            job_id = job["databaseId"]
-            job_name = job["name"].replace(" ", "_")
-            job_log_file = os.path.join(run_dir, f"{index}-{job_name}.log")
-            
-            print(f"Downloading log for job: {job_name} (ID: {job_id})...")
-            
-            try:
-                cmd = [
-                    "gh", "api",
-                    "-H", "Accept: application/vnd.github+json",
-                    "-H", "X-GitHub-Api-Version: 2022-11-28",
-                    f"repos/{repo}/actions/jobs/{job_id}/logs"
-                ]
-                with open(job_log_file, "wb") as f:
-                    log_result = subprocess.run(cmd, stdout=f, check=True)
-                
-                print(f"Log saved to: {job_log_file}")
-            except subprocess.CalledProcessError as e:
-                print(f"Error downloading log for job {job_id}: {e}")
-    
+        print(f"Log saved to: {output_path}")
+        return output_path
     except subprocess.CalledProcessError as e:
-        print(f"Error fetching jobs for run {run_id}: {e}")
-    except json.JSONDecodeError as e:
-        print(f"Error parsing jobs data for run {run_id}: {e}")
-
-
-def compress_logs(output_dir: str):
-    """Compress logs directory into a tar.gz file."""
-    print("Compressing logs...")
-    tar_filename = f"{output_dir}.tar.gz"
-    
-    with tarfile.open(tar_filename, "w:gz") as tar:
-        tar.add(output_dir, arcname=os.path.basename(output_dir))
-    
-    print(f"Logs compressed into '{tar_filename}'.")
-
-
-def main():
-    """Main execution function."""
-    args = parse_arguments()
-    validate_inputs(args)
-    
-    # Ensure output directory exists
-    os.makedirs(args.output, exist_ok=True)
-    
-    # Get workflow ID and run IDs
-    workflow_id = get_workflow_id(args.repo, args.workflow)
-    run_ids = get_run_ids(args.repo, workflow_id, args.days, args.limit)
-    
-    print(f"Downloading logs for runs from the last {args.days} days...")
-    for run_id in run_ids:
-        download_logs_for_run(args.repo, run_id, args.output)
-    
-    compress_logs(args.output)
-    print(f"All logs downloaded and compressed successfully in '{args.output}.tar.gz'.")
-
+        print(f"Error downloading log for job {job_id}: {e}")
+        return None
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    
+    # Create output directory
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+    
+    # WARNING: API token should be stored securely, not in source code
+    github_token = os.environ["GITHUB_TOKEN"]
+    
+    api = GhApi(owner=args.repo.split("/")[0], repo=args.repo.split("/")[1], token=github_token)
+    
+    all_workflows = api.actions.list_repo_workflows()
+    
+    # Find workflow ID by name
+    workflow_name = args.workflow
+    workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
+
+    runs = get_run_ids(workflow_id)
+    for run in runs:
+        jobs = get_jobs_for_workflow_run(run['id'])
+        for job in jobs:
+            get_logs_for_job(job['id'], job['name'], run['id'])
