@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 from pathlib import Path
 import logging
+import subprocess
+from typing import Dict, List, Optional, Any, Tuple, Union
 
 # Configure logging
 logging.basicConfig(
@@ -13,7 +15,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description=f"Download logs from a GitHub Actions workflow."
@@ -40,7 +42,7 @@ def parse_arguments():
     
     return args
 
-def find_workflow_id_by_name(workflows_data, workflow_name, api):
+def find_workflow_id_by_name(workflows_data: Dict[str, Any], workflow_name: str, api: GhApi) -> Optional[int]:
     """
     Extract the ID of a workflow that matches the given name.
     
@@ -67,7 +69,7 @@ def find_workflow_id_by_name(workflows_data, workflow_name, api):
     logging.warning(f"No workflow found with name: {workflow_name}")
     return None
 
-def get_run_ids(workflow_id: int, api, page_size: int, days: int):
+def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List[Dict[str, Any]]:
     """
     Get the run IDs for a specific workflow.
     
@@ -105,7 +107,7 @@ def get_run_ids(workflow_id: int, api, page_size: int, days: int):
     return run_subset
 
 
-def filter_by_date(runs, days):
+def filter_by_date(runs: List[Dict[str, Any]], days: int) -> List[Dict[str, Any]]:
     """Filter runs by date.
     
     Args:
@@ -127,7 +129,7 @@ def filter_by_date(runs, days):
             logging.warning(f"Skipping run with invalid date format: {e}")
     return filtered_runs
 
-def get_jobs_for_workflow_run(run_id: int, api, output_dir: str = "logs"):
+def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs") -> List[Dict[str, Any]]:
     run_dir = Path(output_dir) / f"run-{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,7 +152,7 @@ def get_jobs_for_workflow_run(run_id: int, api, output_dir: str = "logs"):
         logging.error(f"Error fetching jobs for run {run_id}: {e}")
         return []
 
-def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, output_dir: str = "logs"):
+def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, output_dir: str = "logs") -> Optional[Path]:
     """
     Download logs for a specific job using GitHub CLI.
     
@@ -186,7 +188,7 @@ def get_logs_for_job(job_id: int, job_name: str, parent_run_id: int, repo: str, 
         logging.error(f"Unexpected error downloading log for job {job_id}: {e}")
         return None
 
-def main():
+def main() -> int:
     """Main function to run the script."""
     try:
         args = parse_arguments()
@@ -216,7 +218,7 @@ def main():
                 logging.error(f"Invalid repository format: {args.repo}")
                 return 1
                 
-            owner, repo_name = args.repo.split("/")
+            owner, repo_name = args.repo.split("/", 1)
             api = GhApi(owner=owner, repo=repo_name, token=github_token)
             
             # Get workflows
