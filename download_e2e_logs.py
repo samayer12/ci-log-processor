@@ -5,7 +5,8 @@ from datetime import datetime,timedelta
 import os
 from pathlib import Path
 import logging
-from typing import Dict, List, Optional, Any
+import concurrent.futures
+from typing import Dict, List, Optional, Any, Tuple
 
 # Configure logging
 logging.basicConfig(
@@ -60,9 +61,6 @@ def find_workflow_id_by_name(workflows_data: Dict[str, Any], workflow_name: str,
         if workflow.get('name') == workflow_name:
             workflow_id = workflow.get('id')
             logging.info(f"Found workflow '{workflow_name}' with ID: {workflow_id}")
-            
-            workflow_details = api.actions.get_workflow(workflow_id)
-            # print(f"Workflow details: {workflow_details}")
             return workflow.get('id')
     
     logging.warning(f"No workflow found with name: {workflow_name}")
@@ -224,14 +222,35 @@ def main() -> int:
                 print(f"No workflow runs found for '{workflow_name}' in the past {args.days} days")
                 return 0
             
-            # Process each run
+            # Process each run in parallel
             success_count = 0
+            
+            # Helper function for parallel execution
+            def process_job(job_data: Dict[str, Any], run_id: int) -> Optional[Path]:
+                return get_logs_for_job(job_data['id'], job_data['name'], run_id, args.repo, args.output)
+            
+            # Collect all jobs from all runs
+            all_jobs = []
             for run in runs:
                 jobs = get_jobs_for_workflow_run(run['id'], api, args.output)
                 for job in jobs:
-                    log_path = get_logs_for_job(job['id'], job['name'], run['id'], args.repo, args.output)
-                    if log_path:
-                        success_count += 1
+                    all_jobs.append((job, run['id']))
+            
+            logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
+            
+            # Use ThreadPoolExecutor to process jobs in parallel
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Create a list of futures
+                futures = [executor.submit(process_job, job, run_id) for job, run_id in all_jobs]
+                
+                # Process results as they complete
+                for future in concurrent.futures.as_completed(futures):
+                    try:
+                        log_path = future.result()
+                        if log_path:
+                            success_count += 1
+                    except Exception as exc:
+                        logging.error(f"Job processing failed: {exc}")
             
             logging.info(f"Successfully downloaded {success_count} log files")
             print(f"\nSuccessfully downloaded {success_count} log files to {args.output}/")
