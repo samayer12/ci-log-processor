@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 
 # File paths
-LOG_FILE = "/Users/sam.mayer/code/work/ci-log-processor/py.log"
+LOG_FILE = "/Users/sam.mayer/code/personal/ci-log-processor/py.log"
 OUTPUT_IMAGE = "failures_histogram.png"
 
 def load_failure_data(log_file):

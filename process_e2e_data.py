@@ -5,7 +5,7 @@ import re
 
 def print_usage():
     """Prints usage instructions and exits."""
-    print("This script processes directories containing log files from E2E CI runs.")
+    print("This script processes directories containing log files from CI runs.")
     print("\nUsage: python process_e2e_data.py <log_directory1> [log_directory2] ...")
     sys.exit(1)
 
