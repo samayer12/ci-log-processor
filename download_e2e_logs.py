@@ -88,6 +88,14 @@ def get_workflow_id(repo, workflow_name, api):
 
     return workflow_id
 
+def get_all_job_ids(runs, api, output):
+    all_jobs = []
+    for run in runs:
+        jobs = get_jobs_for_workflow_run(run['id'], api, output)
+        for job in jobs:
+            all_jobs.append((job, run['id']))
+    return all_jobs
+
 def get_job_logs_in_parallel(all_jobs, repo, output):
     logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
     # Process each run in parallel
@@ -124,11 +132,6 @@ def main() -> int:
             return 1
         
         try:
-            # Parse repository
-            if '/' not in args.repo:
-                logging.error(f"Invalid repository format: {args.repo}")
-                return 1
-                
             owner, repo_name = args.repo.split("/", 1)
             api = GhApi(owner=owner, repo=repo_name, token=os.environ["GITHUB_TOKEN"])
             
@@ -138,14 +141,9 @@ def main() -> int:
             if not runs:
                 return 0
             
-            # Collect all jobs from all runs
-            all_jobs = []
-            for run in runs:
-                jobs = get_jobs_for_workflow_run(run['id'], api, args.output)
-                for job in jobs:
-                    all_jobs.append((job, run['id']))
+            all_job_ids = get_all_job_ids(runs, api, args.output)
             
-            get_job_logs_in_parallel(all_jobs, args.repo, args.output) 
+            get_job_logs_in_parallel(all_job_ids, args.repo, args.output) 
 
             return 0
             
