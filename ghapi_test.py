@@ -21,11 +21,25 @@ def find_workflow_id_by_name(workflows_data, workflow_name):
             print(f"Found workflow '{workflow_name}' with ID: {workflow_id}")
             
             workflow_details = api.actions.get_workflow(workflow_id)
-            print(f"Workflow details: {workflow_details}")
+            # print(f"Workflow details: {workflow_details}")
             return workflow.get('id')
     
     print(f"No workflow found with name: {workflow_name}")
     return None
+
+def get_run_ids(workflow_id: int):
+    """
+    Get the run IDs for a specific workflow.
+    
+    Args:
+        workflow_id (int): ID of the workflow
+    
+    Returns:
+        list: List of run IDs
+    """
+    # TODO: Pagination & long history requests
+    runs = api.actions.list_workflow_runs(workflow_id)
+    return [{run['id'], run['status'], run['conclusion']} for run in runs['workflow_runs']]
 
 if __name__ == "__main__":
     # WARNING: API token should be stored securely, not in source code
@@ -33,8 +47,10 @@ if __name__ == "__main__":
     
     api = GhApi(owner="defenseunicorns", repo="pepr", token=github_token)
     
-    all_workflows = api.actions.list_repo_workflows()
+    # all_workflows = api.actions.list_repo_workflows()
     
     # Find workflow ID by name
     workflow_name = "E2E - Pepr Excellent Examples"
-    workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
+    # workflow_id = find_workflow_id_by_name(all_workflows, workflow_name)
+
+    print(get_run_ids(92431454)) # TODO: Should really be workflow_id, avoiding excess API calls for now
