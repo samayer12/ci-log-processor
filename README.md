@@ -11,7 +11,7 @@ source .venv/bin/activate
 python3 -m pip install -r requirements.txt
 python3 download_e2e_logs.py --repo ORG/REPO --workflow "WORKFLOW_NAME" --output logs --days 0 --page-size 1 --once
 python3 ./process_e2e_data.py logs/run-* > py.log
-python3 ./chart_e2e_data.py 
+python3 ./chart_e2e_data.py
 # Observe failures_histogram.png and failures_stacked_histogram.png
 ```
 
