@@ -1,7 +1,8 @@
-import os
 import json
-import pandas as pd
+import os
+
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # File paths
 LOG_FILE = "/Users/sam.mayer/code/personal/ci-log-processor/py.log"
@@ -17,21 +18,31 @@ def load_failure_data(log_file):
     for entry in data:
         for job in entry.get("jobs", []):
             if job["failures"] > 0:
-                failures.append((job["job_name"], job["failures"], 
-                                job["test_failure_count"],
-                                job["attempt_failure_count"],
-                                job["final_attempt_failure_count"]))
+                failures.append(
+                    (
+                        job["job_name"],
+                        job["failures"],
+                        job["test_failure_count"],
+                        job["attempt_failure_count"],
+                        job["final_attempt_failure_count"],
+                    )
+                )
 
     return failures
 
 
 def aggregate_failures(failures):
     """Aggregates failures by job name."""
-    df = pd.DataFrame(failures, columns=["job_name",
-                                         "failures",
-                                         "test_failure_count",
-                                         "attempt_failure_count",
-                                         "final_attempt_failure_count"])
+    df = pd.DataFrame(
+        failures,
+        columns=[
+            "job_name",
+            "failures",
+            "test_failure_count",
+            "attempt_failure_count",
+            "final_attempt_failure_count",
+        ],
+    )
     df = df.groupby("job_name", as_index=False).sum()
     df = df.sort_values(by="failures", ascending=False)
     return df
@@ -49,15 +60,19 @@ def plot_failures(df, output_path):
 
     # Add threshold lines
     mean_failures = int(round(df["failures"].mean()))
-    plt.axvline(x=mean_failures, 
-                color="red",
-                linestyle="--",
-                label=f"Mean: {mean_failures} Failures")
+    plt.axvline(
+        x=mean_failures,
+        color="red",
+        linestyle="--",
+        label=f"Mean: {mean_failures} Failures",
+    )
     median_failures = int(round(df["failures"].median()))
-    plt.axvline(x=median_failures,
-                color="green",
-                linestyle="--",
-                label=f"Median: {median_failures} Failures")
+    plt.axvline(
+        x=median_failures,
+        color="green",
+        linestyle="--",
+        label=f"Median: {median_failures} Failures",
+    )
     plt.legend()
 
     plt.tight_layout()
@@ -66,9 +81,11 @@ def plot_failures(df, output_path):
 
     plt.figure(figsize=(10, 6))
     df.set_index("job_name")[
-        ["test_failure_count",
-         "attempt_failure_count",
-         "final_attempt_failure_count"]
+        [
+            "test_failure_count",
+            "attempt_failure_count",
+            "final_attempt_failure_count",
+        ]
     ].plot(kind="barh", stacked=True, figsize=(10, 6), colormap="viridis")
     plt.xlabel("Count")
     plt.ylabel("Job Name")

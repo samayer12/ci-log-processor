@@ -1,7 +1,7 @@
-import os
-import sys
 import json
+import os
 import re
+import sys
 
 
 def print_usage():
@@ -26,7 +26,7 @@ def process_log_file(job):
     if not os.path.isfile(job):
         return None
 
-    with open(job, 'r', encoding='utf-8') as file:
+    with open(job, "r", encoding="utf-8") as file:
         content = file.read()
 
     if "Run nick-fields/retry" not in content:
@@ -39,7 +39,7 @@ def process_log_file(job):
             "test_failure_count": 0,
             "attempt_failure_count": 0,
             "final_attempt_failure_count": 0,
-            "failure_rate": 0
+            "failure_rate": 0,
         }
 
     # Extracting relevant metrics using regex
@@ -51,7 +51,9 @@ def process_log_file(job):
     final_attempt_failure_count = len(re.findall(r"Final attempt failed", content))
     test_fail_count = len(re.findall(r"Tests:\s+\d+ failed,", content))
 
-    failure_count = min(attempt_failure_count + final_attempt_failure_count + test_fail_count, 3) # Retry is capped at 3, kludge for multiple valid failure-strings
+    failure_count = min(
+        attempt_failure_count + final_attempt_failure_count + test_fail_count, 3
+    )  # Retry is capped at 3, kludge for multiple valid failure-strings
     failure_rate = compute_failure_rate(failure_count, total_runs)
 
     return {
@@ -63,7 +65,7 @@ def process_log_file(job):
         "test_failure_count": test_fail_count,
         "attempt_failure_count": attempt_failure_count,
         "final_attempt_failure_count": final_attempt_failure_count,
-        "failure_rate": failure_rate
+        "failure_rate": failure_rate,
     }
 
 
@@ -76,10 +78,7 @@ def process_directory(log_dir):
             if job_data:
                 jobs.append(job_data)
 
-    return {
-        "directory": log_dir,
-        "jobs": jobs
-    }
+    return {"directory": log_dir, "jobs": jobs}
 
 
 if __name__ == "__main__":
