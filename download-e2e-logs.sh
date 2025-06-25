@@ -1,10 +1,11 @@
 #!/bin/bash
+# Example Usage: ./download-e2e-logs.sh -r defenseunicorns/pepr -w "E2E - Pepr Excellent Examples" -o loggy
 set -e # Exit immediately if a command exits with a non-zero status
 
 OUTPUT_DIR="logs" # Default values
 
 usage() {
-    echo "Usage: $0 -r <owner/repo> -w <workflow_name> [-o <output_directory>]"
+    echo "Usage: $0 -r <owner/repo> -w <workflow_name> [-d <days> -o <output_directory>]"
     exit 1
 }
 
@@ -26,14 +27,14 @@ get_workflow_id() {
     echo "Workflow ID: $WORKFLOW_ID"
 }
 
-# Get workflow runs from the last 30 days
+# Get workflow runs from the last $DAYS days
 get_run_ids() {
-    echo "Fetching workflow runs from the last 30 days..."
-    RUN_IDS=$(gh run list --workflow "$WORKFLOW_ID" --repo "$REPO" --limit 500 --json databaseId,createdAt \
-        --jq "map(select(.createdAt >= \"$(date -v-30d -u +"%Y-%m-%dT%H:%M:%SZ")\")) | .[].databaseId")
+    echo "Fetching workflow runs from the last $DAYS days..."
+    RUN_IDS=$(gh run list --workflow "$WORKFLOW_ID" --repo "$REPO" --limit 3 --json databaseId,createdAt \
+        --jq "map(select(.createdAt >= \"$(date -v-$(echo $DAYS)d -u +"%Y-%m-%dT%H:%M:%SZ")\")) | .[].databaseId")
 
     if [[ -z "$RUN_IDS" ]]; then
-        echo "No runs found for the past 30 days."
+        echo "No runs found for the past $DAYS days."
         exit 0
     fi
 }
@@ -83,10 +84,11 @@ compress_logs() {
 }
 
 # Parse command-line arguments
-while getopts "r:w:o:h" opt; do
+while getopts "r:w:d:o:h" opt; do
     case ${opt} in
         r ) REPO=$OPTARG ;;
         w ) WORKFLOW_NAME=$OPTARG ;;
+        d ) DAYS=$OPTARG ;;
         o ) OUTPUT_DIR=$OPTARG ;;
         h ) usage ;;
         * ) usage ;;
@@ -99,7 +101,7 @@ mkdir -p "$OUTPUT_DIR"
 get_workflow_id
 get_run_ids
 
-echo "Downloading logs for runs from the last 30 days..."
+echo "Downloading logs for runs from the last $DAYS days..."
 for RUN_ID in $RUN_IDS; do
     download_logs_for_run "$RUN_ID"
 done
