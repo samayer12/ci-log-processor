@@ -22,6 +22,7 @@ def parse_arguments():
     parser.add_argument("-w", "--workflow", required=True, help="Workflow name")
     parser.add_argument("-d", "--days", type=int, default=7, help="Days to look back (default: 7)")
     parser.add_argument("-o", "--output", default="logs", help="Output directory (default: logs)")
+    parser.add_argument("-l", "--limit", default=100, help="Limit the amount of workflow runs that are pulled. Used to avoid API rate-limits during testing.")
     
     return parser.parse_args()
 
@@ -70,7 +71,7 @@ def get_run_ids(repo, workflow_id, days):
             "gh", "run", "list", 
             "--workflow", str(workflow_id), 
             "--repo", repo, 
-            "--limit", "3",  # Hardcoded, change later
+            "--limit", limit,
             "--json", "databaseId,createdAt"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -158,7 +159,7 @@ def main():
     
     # Get workflow ID and run IDs
     workflow_id = get_workflow_id(args.repo, args.workflow)
-    run_ids = get_run_ids(args.repo, workflow_id, args.days)
+    run_ids = get_run_ids(args.repo, workflow_id, args.days, args.limit)
     
     print(f"Downloading logs for runs from the last {args.days} days...")
     for run_id in run_ids:
