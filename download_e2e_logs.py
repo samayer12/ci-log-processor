@@ -34,7 +34,7 @@ def validate_inputs(args):
         sys.exit(1)
 
 
-def get_workflow_id(repo, workflow_name):
+def get_workflow_id(repo: str, workflow_name: str):
     """Get the workflow ID for the given workflow name."""
     print(f"Fetching workflow ID for '{workflow_name}'...")
     
@@ -59,7 +59,7 @@ def get_workflow_id(repo, workflow_name):
         sys.exit(1)
 
 
-def get_run_ids(repo, workflow_id, days):
+def get_run_ids(repo: str, workflow_id: int, days: int, limit: int):
     """Get workflow run IDs from the last specified days."""
     print(f"Fetching workflow runs from the last {days} days...")
     
@@ -95,7 +95,7 @@ def get_run_ids(repo, workflow_id, days):
         sys.exit(1)
 
 
-def download_logs_for_run(repo, run_id, output_dir):
+def download_logs_for_run(repo: str, run_id: int, output_dir: str):
     """Download logs for a specific run ID."""
     run_dir = os.path.join(output_dir, f"run-{run_id}")
     os.makedirs(run_dir, exist_ok=True)
@@ -138,7 +138,7 @@ def download_logs_for_run(repo, run_id, output_dir):
         print(f"Error parsing jobs data for run {run_id}: {e}")
 
 
-def compress_logs(output_dir):
+def compress_logs(output_dir: str):
     """Compress logs directory into a tar.gz file."""
     print("Compressing logs...")
     tar_filename = f"{output_dir}.tar.gz"
