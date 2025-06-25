@@ -1,12 +1,11 @@
 import argparse
 import sys
 from ghapi.all import GhApi
-from datetime import datetime
+from datetime import datetime,timedelta 
 import os
 from pathlib import Path
 import logging
-import subprocess
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any
 
 # Configure logging
 logging.basicConfig(
@@ -81,7 +80,9 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
     """
     try:
         # TODO: Pagination & long history requests
-        runs = api.actions.list_workflow_runs(workflow_id, per_page=page_size)
+        date_limit = datetime.today() - timedelta(days=days)
+        date_limit_str = date_limit.strftime("%Y-%m-%d")
+        runs = api.actions.list_workflow_runs(workflow_id, created=f">={date_limit_str}", per_page=page_size)
         logging.info(f"There are {len(runs['workflow_runs'])} runs on the first page (no pagination)")
         
         if 'workflow_runs' not in runs:
@@ -99,35 +100,11 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
             if run.get('id') and run.get('created_at')  # Skip runs with missing required data
         ]
         
-        run_subset = filter_by_date(run_subset, days)
-        logging.info(f"There are {len(run_subset)} runs that happened within the past {days} days")
+        logging.info(f"There are {len(run_subset)} runs that happened within the past {days} days. (Filter: >={date_limit_str})")
     except Exception as e:
         logging.error(f"Error fetching workflow runs: {e}")
         return []
     return run_subset
-
-
-def filter_by_date(runs: List[Dict[str, Any]], days: int) -> List[Dict[str, Any]]:
-    """Filter runs by date.
-    
-    Args:
-        runs (list): List of workflow runs
-        days (int): Number of days to look back
-        
-    Returns:
-        list: Filtered list of runs
-    """
-    filtered_runs = []
-    for run in runs:
-        try:
-            created_at = run.get('created_at')
-            if created_at:
-                days_ago = (datetime.now() - datetime.strptime(created_at, f'%Y-%m-%dT%H:%M:%SZ')).days
-                if days_ago <= days:
-                    filtered_runs.append(run)
-        except (ValueError, KeyError) as e:
-            logging.warning(f"Skipping run with invalid date format: {e}")
-    return filtered_runs
 
 def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs") -> List[Dict[str, Any]]:
     run_dir = Path(output_dir) / f"run-{run_id}"
