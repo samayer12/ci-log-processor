@@ -25,7 +25,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-w", "--workflow", required=True, help=f"Workflow name")
     parser.add_argument("-d", "--days", type=int, default=7, help=f"Days to look back (default: 7)")
     parser.add_argument("-o", "--output", default="logs", help=f"Output directory (default: logs)")
-    parser.add_argument("-p", "--page-size", type=int, default=100, help=f"Set page size. Pagination is currently unsupported.")
+    parser.add_argument("-1", "--once", action="store_true", help=f"Only fetch one page. Used with --page-size in testing to avoid API rate-limits")
+    parser.add_argument("-p", "--page-size", type=int, default=100, help=f"Set page size (default: 100)")
+
     
     args = parser.parse_args()
     
@@ -137,7 +139,7 @@ def main() -> int:
             
             workflow_id = get_workflow_id(args.repo, args.workflow, api)
             
-            runs = get_run_ids(workflow_id, api, args.page_size, args.days)
+            runs = get_run_ids(workflow_id, api, args.page_size, args.once, args.days)
             if not runs:
                 return 0
             

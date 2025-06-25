@@ -4,7 +4,7 @@ from pathlib import Path
 import logging
 from typing import Dict, List, Optional, Any
 
-def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List[Dict[str, Any]]:
+def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, days: int) -> List[Dict[str, Any]]:
     """
     Get the run IDs for a specific workflow.
     
@@ -15,9 +15,13 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
         list: List of run IDs
     """
     try:
+        page_depth = 9999
+        if max_pages:
+            logging.info("--once flag detected. Only getting one page.")
+            page_depth = 1
         date_limit = datetime.today() - timedelta(days=days)
         date_limit_str = date_limit.strftime("%Y-%m-%d")
-        runs = paged(api.actions.list_workflow_runs, workflow_id, created=f">={date_limit_str}", per_page=page_size)
+        runs = paged(api.actions.list_workflow_runs, workflow_id, created=f">={date_limit_str}", per_page=page_size, max_pages=page_depth)
         run_subset = []
         page_number = 1
         for page in runs:
