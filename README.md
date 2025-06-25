@@ -7,7 +7,7 @@ Sometimes, the basic data views provided by Github don't quite provide the data 
 
 ```
 # Set GITHUB_TOKEN envar (e.g., export GITHUB_TOKEN=your_token)
-python3 download_e2e_logs.py --repo defenseunicorns/pepr --workflow "E2E - Pepr Excellent Examples" --output logs --days 0 --page-size 1 --once
+python3 download_e2e_logs.py --repo ORG/REPO --workflow "WORKFLOW_NAME" --output logs --days 0 --page-size 1 --once
 python3 ./process_e2e_data.py logs/run-* > py.log
 python3 ./chart_e2e_data.py 
 # Observe failures_histogram.png and failures_stacked_histogram.png
@@ -40,4 +40,4 @@ options:
 
 * Provide data to a monitoring/observability stack (e.g., LGTM).
 * Handle rate-limiting for Github API.
-* Create a UDS package.
+* Create a consumable package of this work.
