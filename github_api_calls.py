@@ -1,4 +1,4 @@
-from ghapi.all import GhApi
+from ghapi.all import GhApi, paged
 from datetime import datetime,timedelta 
 from pathlib import Path
 import logging
@@ -18,23 +18,25 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, days: int) -> List
         # TODO: Pagination & long history requests
         date_limit = datetime.today() - timedelta(days=days)
         date_limit_str = date_limit.strftime("%Y-%m-%d")
-        runs = api.actions.list_workflow_runs(workflow_id, created=f">={date_limit_str}", per_page=page_size)
-        logging.info(f"There are {len(runs['workflow_runs'])} runs on the first page (no pagination)")
-        
-        if 'workflow_runs' not in runs:
-            logging.error("Invalid response: 'workflow_runs' key not found")
-            return []
-            
-        run_subset = [
-            {
-                "id": run.get('id'),
-                "status": run.get('status'),
-                "conclusion": run.get('conclusion'),
-                "created_at": run.get('created_at')
-            } 
-            for run in runs['workflow_runs'] 
-            if run.get('id') and run.get('created_at')  # Skip runs with missing required data
-        ]
+        runs = paged(api.actions.list_workflow_runs, workflow_id, created=f">={date_limit_str}", per_page=page_size)
+        run_subset = []
+        page_number = 1
+        for page in runs:
+          page_number += 1
+          if len(page['workflow_runs']) == 0:
+              logging.info(f"No entries detected after {page_number - 1} pages")
+              return run_subset # End of pagination, return the collection
+
+          logging.info(f"There are {len(page['workflow_runs'])} runs on page {page_number}")
+
+          for run in page['workflow_runs']:
+            run_subset.append(
+                {
+                    "id": run.get('id'),
+                    "status": run.get('status'),
+                    "conclusion": run.get('conclusion'),
+                    "created_at": run.get('created_at')
+                })
         
         logging.info(f"There are {len(run_subset)} runs that happened within the past {days} days. (Filter: >={date_limit_str})")
     except Exception as e:
@@ -49,7 +51,6 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
   logging.info(f"Fetching jobs for run ID: {run_id}...")
 
   try:
-      # TODO: Should be used iteratively in main loop
       jobs = api.actions.list_jobs_for_workflow_run(run_id)
       
       if 'jobs' not in jobs:
