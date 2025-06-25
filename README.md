@@ -43,3 +43,16 @@ options:
 * Provide data to a monitoring/observability stack (e.g., LGTM).
 * Handle rate-limiting for Github API.
 * Create a consumable package of this work.
+
+```mermaid
+graph TD
+    A[CronJob: Fetch Data] --> B[Raw JSON/Log Downloader]
+    B --> C["Log Processor (Regex)
+    - Failure types
+    - Timings"]
+    C --> D["Prometheus
+    - Metrics"]
+    C --> E["Loki (Optional)
+    - Raw log search"]
+    D --> F[Grafana]
+```
