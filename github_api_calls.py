@@ -144,14 +144,22 @@ def get_logs_for_job(
 
 
 def get_all_job_ids(runs, api, output):
-    fetch_limit = 900  # 30 runs w/ 30 jobs each
+    fetch_limit = 90  # 30 runs w/ 30 jobs each
     all_jobs = []
+    processed_runs = []
     for run in runs:
         jobs = get_jobs_for_workflow_run(run["id"], api, output)
         for job in jobs:
             all_jobs.append((job, run["id"]))
         logging.info("Fetched jobs for run %s. %d total jobs.", run["id"], len(all_jobs))
+        processed_runs.append(run["id"])
         if len(all_jobs) > fetch_limit:
             logging.warning("Too many jobs were fetched (limit %d).", fetch_limit)
+            logging.info("%d Processed runs: %s", len(processed_runs), processed_runs)
+            logging.warning(
+                "%d Unprocessed runs. %s",
+                len(runs) - len(processed_runs),
+                [run["id"] for run in runs if run["id"] not in processed_runs],
+            )
             return all_jobs
     return all_jobs
