@@ -15,7 +15,7 @@ def get_job_logs_in_parallel(all_jobs, repo, output):
             rate_limit_index,
         )
         all_jobs = all_jobs[:rate_limit_index]
-    logging.info("Processing %d jobs in parallel...", len(all_jobs))
+    logging.info("Processing %d jobs in parallel.", len(all_jobs))
     # Process each run in parallel
     success_count = 0
 

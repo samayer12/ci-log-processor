@@ -6,7 +6,9 @@ from typing import Any, Dict, List, Optional
 from ghapi.all import GhApi, paged
 
 
-def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, days: int) -> List[Dict[str, Any]]:
+def get_run_ids(
+    workflow_id: int, api: GhApi, page_size: int, max_pages: bool, days: int, date_range: str = ""
+) -> List[Dict[str, Any]]:
     """
     Get the run IDs for a specific workflow.
 
@@ -20,14 +22,17 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
         page_depth = 9999
         if max_pages:
             logging.info("--once flag detected. Only getting one page.")
-            logging.info("Kludge! Setting page-depth to 10")
-            page_depth = 10
+            # logging.info("Kludge! Setting page-depth to 10")
+            page_depth = 1
         date_limit = datetime.today() - timedelta(days=days)
-        date_limit_str = date_limit.strftime("%Y-%m-%d")
+        date_limit_str = ">=" + date_limit.strftime("%Y-%m-%d")
+        if days == 7 and date_range:  # 7 is the default for days
+            logging.info("Filtering on date range: %s", date_limit_str)
+            date_limit_str = date_range
         runs = paged(
             api.actions.list_workflow_runs,
             workflow_id,
-            created=f">={date_limit_str}",
+            created=date_limit_str,
             per_page=page_size,
             max_pages=page_depth,
         )
@@ -52,9 +57,8 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
                 )
 
         logging.info(
-            "There are %d runs that happened within the past %d days. (Filter: >=%s)",
+            "There are %d runs that happened in the filter range. (Filter: %s)",
             len(run_subset),
-            days,
             date_limit_str,
         )
     except Exception as e:
@@ -129,7 +133,7 @@ def get_logs_for_job(
         with output_path.open("wb") as f:
             subprocess.run(cmd, stdout=f, check=True)
 
-        logging.info("Log saved to: %s", output_path)
+        # logging.info("Log saved to: %s", output_path)
         return output_path
     except subprocess.CalledProcessError as e:
         logging.error("Error downloading log for job %d: %s", job_id, e)

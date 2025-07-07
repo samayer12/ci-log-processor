@@ -24,13 +24,6 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("-r", "--repo", required=True, help="Repository in owner/repo format")
     parser.add_argument("-w", "--workflow", required=True, help="Workflow name")
     parser.add_argument(
-        "-d",
-        "--days",
-        type=int,
-        default=7,
-        help="Days to look back (default: 7)",
-    )
-    parser.add_argument(
         "-o",
         "--output",
         default="logs",
@@ -49,7 +42,20 @@ def parse_arguments() -> argparse.Namespace:
         default=100,
         help="Set page size (default: 100)",
     )
-
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-d",
+        "--days",
+        type=int,
+        default=7,
+        help="Days to look back (default: 7). Exclusive with --range",
+    )
+    group.add_argument(
+        "--range",
+        type=str,
+        default="",
+        help="Set the date-range to pull events from (YYYY-MM-DD..YYYY-MM-DD). Exclusive with --days",
+    )
     args = parser.parse_args()
 
     # Validate repository format
@@ -129,7 +135,7 @@ def main() -> int:
 
             workflow_id = get_workflow_id(args.repo, args.workflow, api)
 
-            runs = get_run_ids(workflow_id, api, args.page_size, args.once, args.days)
+            runs = get_run_ids(workflow_id, api, args.page_size, args.once, args.days, args.range)
             if not runs:
                 return 0
 
