@@ -7,7 +7,13 @@ from github_api_calls import get_logs_for_job
 
 
 def get_job_logs_in_parallel(all_jobs, repo, output):
-    logging.info(f"Processing {len(all_jobs)} jobs in parallel...")
+    if len(all_jobs) > 1000:
+        logging.warning(
+            "More than 1000 jobs detected (found %d). " "Only fetching first 1000 jobs to avoid rate-limit.",
+            len(all_jobs),
+        )
+        all_jobs = all_jobs[:1000]
+    logging.info("Processing %d jobs in parallel...", len(all_jobs))
     # Process each run in parallel
     success_count = 0
 
@@ -29,5 +35,5 @@ def get_job_logs_in_parallel(all_jobs, repo, output):
                 if log_path:
                     success_count += 1
             except Exception as exc:
-                logging.error(f"Job processing failed: {exc}")
-    logging.info(f"Successfully downloaded {success_count} log files to {output}/")
+                logging.error("Job processing failed: %s", exc)
+    logging.info("Successfully downloaded %d log files to %s/", success_count, output)

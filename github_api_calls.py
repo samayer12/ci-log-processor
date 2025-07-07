@@ -20,7 +20,8 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
         page_depth = 9999
         if max_pages:
             logging.info("--once flag detected. Only getting one page.")
-            page_depth = 1
+            logging.info("Kludge! Setting page-depth to 10")
+            page_depth = 10
         date_limit = datetime.today() - timedelta(days=days)
         date_limit_str = date_limit.strftime("%Y-%m-%d")
         runs = paged(
@@ -34,10 +35,10 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
         page_number = 1
         for page in runs:
             if len(page["workflow_runs"]) == 0:
-                logging.info(f"No entries detected after {page_number - 1} pages")
+                logging.info("No entries detected after %d pages", page_number - 1)
                 return run_subset  # End of pagination, return the collection
 
-            logging.info(f"There are {len(page['workflow_runs'])} runs on page {page_number}")
+            logging.info("There are %d runs on page %d", len(page["workflow_runs"]), page_number)
             page_number += 1
 
             for run in page["workflow_runs"]:
@@ -51,13 +52,20 @@ def get_run_ids(workflow_id: int, api: GhApi, page_size: int, max_pages: bool, d
                 )
 
         logging.info(
-            f"There are {len(run_subset)} runs that happened within the past {days} days. (Filter: >={date_limit_str})"
+            "There are %d runs that happened within the past %d days. (Filter: >=%s)",
+            len(run_subset),
+            days,
+            date_limit_str,
         )
     except Exception as e:
-        logging.error(f"Error fetching workflow runs: {e}")
+        logging.error("Error fetching workflow runs: %s", e)
         return []
     if len(run_subset) == 0:
-        logging.warning(f"No runs found for this workflow (id: {workflow_id}) in the past {days} days")
+        logging.warning(
+            "No runs found for this workflow (id: %d) in the past %d days",
+            workflow_id,
+            days,
+        )
     return run_subset
 
 
@@ -65,13 +73,13 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
     run_dir = Path(output_dir) / f"run-{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    logging.info(f"Fetching jobs for run ID: {run_id}...")
+    logging.info("Fetching jobs for run ID: %d", run_id)
 
     try:
         jobs = api.actions.list_jobs_for_workflow_run(run_id)
 
         if "jobs" not in jobs:
-            logging.error(f"Invalid response for run {run_id}: 'jobs' key not found")
+            logging.error("Invalid response for run %d: 'jobs' key not found", run_id)
             return []
 
         return [
@@ -80,7 +88,7 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
             if job.get("id")  # Skip jobs with missing ID
         ]
     except Exception as e:
-        logging.error(f"Error fetching jobs for run {run_id}: {e}")
+        logging.error("Error fetching jobs for run %d: %s", run_id, e)
         return []
 
 
@@ -121,13 +129,13 @@ def get_logs_for_job(
         with output_path.open("wb") as f:
             subprocess.run(cmd, stdout=f, check=True)
 
-        logging.info(f"Log saved to: {output_path}")
+        logging.info("Log saved to: %s", output_path)
         return output_path
     except subprocess.CalledProcessError as e:
-        logging.error(f"Error downloading log for job {job_id}: {e}")
+        logging.error("Error downloading log for job %d: %s", job_id, e)
         return None
     except Exception as e:
-        logging.error(f"Unexpected error downloading log for job {job_id}: {e}")
+        logging.error("Unexpected error downloading log for job %d: %s", job_id, e)
         return None
 
 
