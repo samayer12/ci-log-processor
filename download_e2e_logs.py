@@ -40,7 +40,7 @@ def parse_arguments() -> argparse.Namespace:
         "-1",
         "--once",
         action="store_true",
-        help="Only fetch one page. Used with --page-size in" "testing to avoid API rate-limits",
+        help="Only fetch one page. Used with --page-size in testing to avoid API rate-limits",
     )
     parser.add_argument(
         "-p",

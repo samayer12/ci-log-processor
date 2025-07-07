@@ -73,8 +73,6 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
     run_dir = Path(output_dir) / f"run-{run_id}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    logging.info("Fetching jobs for run ID: %d", run_id)
-
     try:
         jobs = api.actions.list_jobs_for_workflow_run(run_id)
 
@@ -82,11 +80,13 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
             logging.error("Invalid response for run %d: 'jobs' key not found", run_id)
             return []
 
-        return [
+        valid_jobs = [
             {"id": job.get("id"), "name": job.get("name", "unnamed-job")}
             for job in jobs["jobs"]
             if job.get("id")  # Skip jobs with missing ID
         ]
+        logging.info("Fetched %d valid jobs for run %d", len(valid_jobs), run_id)
+        return valid_jobs
     except Exception as e:
         logging.error("Error fetching jobs for run %d: %s", run_id, e)
         return []
