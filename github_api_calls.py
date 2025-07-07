@@ -22,13 +22,13 @@ def get_run_ids(
         page_depth = 9999
         if max_pages:
             logging.info("--once flag detected. Only getting one page.")
-            # logging.info("Kludge! Setting page-depth to 10")
-            page_depth = 1
+            logging.info("Kludge! Setting page-depth to 5")
+            page_depth = 5
         date_limit = datetime.today() - timedelta(days=days)
         date_limit_str = ">=" + date_limit.strftime("%Y-%m-%d")
-        if days == 7 and date_range:  # 7 is the default for days
-            logging.info("Filtering on date range: %s", date_limit_str)
+        if days == 7 and date_range != "":  # 7 is the default for days
             date_limit_str = date_range
+            logging.info("Filtering on date range: %s", date_limit_str)
         runs = paged(
             api.actions.list_workflow_runs,
             workflow_id,
@@ -89,7 +89,7 @@ def get_jobs_for_workflow_run(run_id: int, api: GhApi, output_dir: str = "logs")
             for job in jobs["jobs"]
             if job.get("id")  # Skip jobs with missing ID
         ]
-        logging.info("Fetched %d valid jobs for run %d", len(valid_jobs), run_id)
+        logging.debug("Fetched %d valid jobs for run %d", len(valid_jobs), run_id)
         return valid_jobs
     except Exception as e:
         logging.error("Error fetching jobs for run %d: %s", run_id, e)
@@ -144,9 +144,14 @@ def get_logs_for_job(
 
 
 def get_all_job_ids(runs, api, output):
+    fetch_limit = 300
     all_jobs = []
     for run in runs:
         jobs = get_jobs_for_workflow_run(run["id"], api, output)
         for job in jobs:
             all_jobs.append((job, run["id"]))
+        logging.info("Fetched jobs for run %s. %d total jobs.", run["id"], len(all_jobs))
+        if len(all_jobs) > fetch_limit:
+            logging.warning("Too many jobs were fetched (limit %d).", fetch_limit)
+            return all_jobs
     return all_jobs

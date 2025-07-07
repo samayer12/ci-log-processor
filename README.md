@@ -31,11 +31,12 @@ options:
   -r, --repo REPO       Repository in owner/repo format
   -w, --workflow WORKFLOW
                         Workflow name
-  -d, --days DAYS       Days to look back (default: 7)
   -o, --output OUTPUT   Output directory (default: logs)
   -1, --once            Only fetch one page. Used with --page-size in testing to avoid API rate-limits
   -p, --page-size PAGE_SIZE
                         Set page size (default: 100)
+  -d, --days DAYS       Days to look back (default: 7). Exclusive with --range
+  --range RANGE         Set the date-range to pull events from (YYYY-MM-DD..YYYY-MM-DD). Exclusive with --days
 ```
 
 ## Future Goals

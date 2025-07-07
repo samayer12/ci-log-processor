@@ -38,4 +38,6 @@ def get_job_logs_in_parallel(all_jobs, repo, output):
                     success_count += 1
             except Exception as exc:
                 logging.error("Job processing failed: %s", exc)
-    logging.info("Successfully downloaded %d log files to %s/", success_count, output)
+    logging.info(
+        "(%d/%d) Successfully downloaded %d log files to %s/", success_count, len(all_jobs), success_count, output
+    )
