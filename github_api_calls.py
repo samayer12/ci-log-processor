@@ -144,7 +144,7 @@ def get_logs_for_job(
 
 
 def get_all_job_ids(runs, api, output):
-    fetch_limit = 300
+    fetch_limit = 900  # 30 runs w/ 30 jobs each
     all_jobs = []
     for run in runs:
         jobs = get_jobs_for_workflow_run(run["id"], api, output)
